@@ -11,4 +11,14 @@ router.get('/generate', function(req, res){
     res.status(200).send(core);
 });
 
+router.post('/receive', function(req, res){
+    const newBlock = req.body.block;
+    core.receive(newBlock, function(res, msg){
+        if (res === null) {
+            res.status(401).send({msg: msg});
+        }
+    });
+    res.status(200).send(core);
+});
+
 module.exports = router;

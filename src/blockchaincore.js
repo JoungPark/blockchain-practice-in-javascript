@@ -1,5 +1,7 @@
+const axios = require('axios');
 const sha256 = require('sha256');
 const transactions = require('./transactions')
+const networkNode = require('../src/network');
 
 function Blockchain() {
     this.difficulty = 4;
@@ -19,7 +21,27 @@ Blockchain.prototype.generateBlock = function() {
     let nonce = proofOfWork.nonce;
     let hash = proofOfWork.hash;
     
-    this.createNewBlock(nonce, previousBlockHash, hash);
+    let newBlock = this.createNewBlock(nonce, previousBlockHash, hash);
+
+    const axiosPromises = [];
+    networkNode.getInstance().networkNodeUrls.forEach(url => {
+        axiosPromises.push(
+            axios({
+                method: 'post',
+                url: url + '/blockchain/receive',
+                data: {
+                    block: newBlock
+                }
+            })
+        );
+    });
+    Promise.all(axiosPromises)
+    .then(function (res) {
+        console.log('Promise success');
+    })
+    .catch(function (err) {
+        console.log(err);
+    });
 };
 
 Blockchain.prototype.createNewBlock = function(nonce, previousBlockHash, hash) {
@@ -32,8 +54,10 @@ Blockchain.prototype.createNewBlock = function(nonce, previousBlockHash, hash) {
         transaction: transactions.getPendings()
     };
 
-    transactions.clear();
+    transactions.clearAll();
     this.chain.push(newBlock);
+
+    return newBlock;
 };
 
 Blockchain.prototype.proofOfWork = function() {
@@ -57,6 +81,18 @@ Blockchain.prototype.proofOfWork = function() {
         nonce: nonce,
         hash: hash
     }
+};
+
+Blockchain.prototype.receive = function(newBlock, callback){
+    const lastBlock = this.getLastBlock();
+
+	if ((lastBlock.hash === newBlock.previousBlockHash) && (lastBlock['index'] + 1 === newBlock['index'])) {
+		this.chain.push(newBlock);
+        transactions.clearAll();
+        callback(this);
+	} else {
+		callback(null, 'rejected');
+	}
 };
 
 const blockchain = new Blockchain();

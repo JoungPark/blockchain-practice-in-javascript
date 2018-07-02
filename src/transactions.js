@@ -9,7 +9,7 @@ Transactions.prototype.getPendings = function() {
     return this.pendings;
 };
 
-Transactions.prototype.clear = function() {
+Transactions.prototype.clearAll = function() {
     this.pendings = [];
 };
 
