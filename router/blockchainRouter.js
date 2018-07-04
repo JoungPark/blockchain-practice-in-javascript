@@ -1,24 +1,28 @@
 var express = require('express');
 var router = express.Router();
-const core = require('../src/blockchaincore');
+const blockchain = require('../src/blockchaincore');
 
 router.get('/', function(req, res){
-    res.status(200).send(core);
+    res.status(200).send(blockchain);
 });
 
 router.get('/generate', function(req, res){
-    core.generateBlock();
-    res.status(200).send(core);
+    blockchain.generateBlock();
+    res.status(200).send(blockchain);
 });
 
 router.post('/receive', function(req, res){
     const newBlock = req.body.block;
-    core.receive(newBlock, function(res, msg){
+    blockchain.receive(newBlock, function(res, msg){
         if (res === null) {
             res.status(401).send({msg: msg});
         }
     });
-    res.status(200).send(core);
+    res.status(200).send(blockchain);
 });
 
+router.get('/consensus', function(req, res){
+    blockchain.consensus();
+    res.status(200).send(blockchain);
+});
 module.exports = router;

@@ -63,15 +63,18 @@ Blockchain.prototype.createNewBlock = function(nonce, previousBlockHash, hash) {
 Blockchain.prototype.proofOfWork = function() {
     let lastblock = this.getLastBlock();
     let previousBlockHash = lastblock.hash;
-    let currentBlockData = {
-        index: this.chain.length,
-        transactions: transactions.getPendings()
-    };
+    // let currentBlockData = {
+    //     index: this.chain.length,
+    //     transactions: transactions.getPendings()
+    // };
+    const index = this.chain.length;
+
     let nonce = 0;
     let hash;
     while(true){
-        const dataAsString = previousBlockHash + nonce.toString() + JSON.stringify(currentBlockData);
-        hash = sha256(dataAsString);
+        // const dataAsString = previousBlockHash + nonce.toString() + JSON.stringify(currentBlockData);
+        // hash = sha256(dataAsString);
+        hash = getHash(previousBlockHash, nonce, index, transactions.getPendings());
         if (hash.substring(0, this.difficulty) === Array(this.difficulty + 1).join('0')) {
             break;
         }
@@ -93,6 +96,59 @@ Blockchain.prototype.receive = function(newBlock, callback){
 	} else {
 		callback(null, 'rejected');
 	}
+};
+
+getHash = function(previousBlockHash, nonce, index, transactions) {
+    let currentBlockData = {
+        index: index,
+        transactions: transactions
+    };
+    const dataAsString = previousBlockHash + nonce.toString() + JSON.stringify(currentBlockData);
+    return sha256(dataAsString);
+};
+
+isValidBlockChain = function(chain) {
+    for(let i = 1; i < chain.length; i++) {
+        const prevBlock = chain[i-1];
+        const currBlock = chain[i];
+        if (prevBlock.hash !== currBlock.previousBlockHash) {
+            return false;
+        }
+        const hash = getHash(currBlock.previousBlockHash, currBlock.nonce, currBlock.index, currBlock.transaction.getPendings());
+        if (hash !== currBlock.hash) {
+            return false;
+        }
+    }
+    return true;
+};
+
+Blockchain.prototype.consensus = function() {
+    const axiosPromises = [];
+    networkNode.getInstance().networkNodeUrls.forEach(url => {
+        axiosPromises.push(
+            axios({
+                method: 'get',
+                url: url + '/blockchain'
+            })
+        );
+    });
+    Promise.all(axiosPromises)
+    .then(responces => {
+        responces.forEach(res =>{
+            console.log(res.data);
+            otherNodeChain = res.data;
+            console.log(`${this.chain.length} , ${otherNodeChain.chain.length}`);
+            if(this.chain.length > otherNodeChain.chain.length){
+                return;
+            }
+            if (isValidBlockChain(otherNodeChain) === true) {
+                this.chain = otherNodeChain.chain;
+            }
+        });
+    })
+    .catch(function (err) {
+        // console.log(err);
+    });
 };
 
 const blockchain = new Blockchain();
